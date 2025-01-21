@@ -1,0 +1,23 @@
+trigger: none
+
+pool:
+  name: 'Self-Hosted Agents - DEV'
+
+variables:
+  - group: DEV
+
+stages:
+- stage: Deploy
+  jobs:
+  - job: DeployContainer
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Deploy Image to Azure Container Apps'
+      inputs:
+        azureSubscription: 'DEV Service Connection'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Deploying Image to Container App"
+          az acr login --name $(ACR_NAME)
+          az containerapp update --name $(CONTAINER_APP_NAME) --resource-group $(RESOURCE_GROUP) --image $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(TAG)
