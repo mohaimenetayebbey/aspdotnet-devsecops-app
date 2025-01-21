@@ -2,7 +2,7 @@ trigger:
 - dev
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Self-Hosted Agents - DEV'
 
 variables:
   - group: DEV
@@ -26,13 +26,15 @@ stages:
         dotnet sonarscanner end /d:sonar.login="$(SONAR_TOKEN)"
       displayName: 'Run SonarQube SAST'
 
-    - task: Docker@2
-      displayName: 'Build Docker Image'
+    - task: AzureCLI@2
+      displayName: 'Build and Push Docker Image to ACR'
       inputs:
-        command: 'build'
-        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
-        repository: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME)'
-        tags: '$(TAG)'
+        azureSubscription: 'DEV Service Connection'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Building Docker Image"
+          az acr build --registry $(ACR_NAME) --image $(IMAGE_NAME):$(TAG) --file $(Build.SourcesDirectory)/Dockerfile .
 
     - script: |
         echo "Running Static Scan with TwistCLI"
@@ -43,10 +45,3 @@ stages:
         echo "Running Dynamic Scan with TwistCLI Sandbox"
         ./twistcli sandbox --address $(PRISMA_URL) --user $(PRISMA_USERNAME) --password $(PRISMA_PASSWORD) $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(TAG)
       displayName: 'Run Dynamic Scan'
-
-    - task: Docker@2
-      displayName: 'Push Image to ACR'
-      inputs:
-        command: 'push'
-        repository: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME)'
-        tags: '$(TAG)'

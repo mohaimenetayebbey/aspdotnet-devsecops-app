@@ -1,7 +1,7 @@
 trigger: none
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Self-Hosted Agents - DEV'
 
 variables:
   - group: DEV
@@ -11,8 +11,13 @@ stages:
   jobs:
   - job: DeployContainer
     steps:
-    - script: |
-        echo "Fetching latest image from ACR"
-        az acr login --name $(ACR_NAME)
-        az containerapp update --name $(CONTAINER_APP_NAME) --resource-group $(RESOURCE_GROUP) --image $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(TAG)
+    - task: AzureCLI@2
       displayName: 'Deploy Image to Azure Container Apps'
+      inputs:
+        azureSubscription: 'DEV Service Connection'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Deploying Image to Container App"
+          az acr login --name $(ACR_NAME)
+          az containerapp update --name $(CONTAINER_APP_NAME) --resource-group $(RESOURCE_GROUP) --image $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(TAG)
