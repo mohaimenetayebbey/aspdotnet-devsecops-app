@@ -1,0 +1,52 @@
+trigger:
+- dev
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: DEV
+
+stages:
+- stage: Build
+  jobs:
+  - job: BuildScanAndTest
+    steps:
+    - checkout: self
+
+    - script: |
+        echo "Running Unit Tests"
+        dotnet test SecureDotNetApp.Tests/SecureDotNetApp.Tests.csproj --logger trx
+      displayName: 'Run Unit Tests'
+
+    - script: |
+        echo "Running SonarQube SAST Analysis"
+        dotnet sonarscanner begin /k:"$(SONAR_PROJECT_KEY)" /d:sonar.host.url="$(SONAR_HOST_URL)" /d:sonar.login="$(SONAR_TOKEN)"
+        dotnet build
+        dotnet sonarscanner end /d:sonar.login="$(SONAR_TOKEN)"
+      displayName: 'Run SonarQube SAST'
+
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        command: 'build'
+        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+        repository: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME)'
+        tags: '$(TAG)'
+
+    - script: |
+        echo "Running Static Scan with TwistCLI"
+        ./twistcli images scan --address $(PRISMA_URL) --user $(PRISMA_USERNAME) --password $(PRISMA_PASSWORD) --details $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(TAG)
+      displayName: 'Run Static Scan'
+
+    - script: |
+        echo "Running Dynamic Scan with TwistCLI Sandbox"
+        ./twistcli sandbox --address $(PRISMA_URL) --user $(PRISMA_USERNAME) --password $(PRISMA_PASSWORD) $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(TAG)
+      displayName: 'Run Dynamic Scan'
+
+    - task: Docker@2
+      displayName: 'Push Image to ACR'
+      inputs:
+        command: 'push'
+        repository: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME)'
+        tags: '$(TAG)'
