@@ -54,9 +54,6 @@ This tutorial will guide you through:
 
 2. **Set Up Azure DevOps Pipelines**  
    - Create build and deploy pipelines based on the provided YAML configurations.  
-   - Update the pipelines to use **Azure CLI** commands instead of Docker tasks.  
-   - Use the service connection named **"DEV Service Connection"**.  
-
 3. **Configure the Azure DevOps Variable Group**  
    - Create a variable group named **DEV** with the following variables:  
      - `ACR_NAME` → Azure Container Registry name.  
